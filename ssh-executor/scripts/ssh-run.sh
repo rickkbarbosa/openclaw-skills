@@ -49,7 +49,9 @@ PY
 is_dangerous_command() {
   local cmd_lc
   cmd_lc="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
-  [[ "$cmd_lc" =~ (^|[[:space:];|&])(sudo|rm([[:space:]]|$)|mv[[:space:]]|chmod[[:space:]]|chown[[:space:]]|systemctl[[:space:]]+(restart|stop|disable)|reboot([[:space:]]|$)|shutdown([[:space:]]|$)|apt([[:space:]-]|$)|apt-get([[:space:]-]|$)|dnf([[:space:]-]|$)|yum([[:space:]-]|$)|apk([[:space:]-]|$)|pacman([[:space:]-]|$)|docker[[:space:]]+compose[[:space:]]+down|docker[[:space:]]+rm|kubectl[[:space:]]+delete|tee[[:space:]]|sed[[:space:]]+-i|truncate[[:space:]]|dd[[:space:]]) ]]
+  # Best-effort heuristic: catches common destructive patterns.
+  # This is NOT exhaustive — an empty check does NOT mean the command is safe.
+  [[ "$cmd_lc" =~ (^|[[:space:];|&])(sudo|rm([[:space:]]|$)|mv[[:space:]]|cp[[:space:]]|chmod[[:space:]]|chown[[:space:]]|systemctl[[:space:]]+(restart|stop|disable|start|reload|enable)|reboot([[:space:]]|$)|shutdown([[:space:]]|$)|poweroff([[:space:]]|$)|halt([[:space:]]|$)|init[[:space:]]+(0|6)|apt([[:space:]-]|$)|apt-get([[:space:]-]|$)|dnf([[:space:]-]|$)|yum([[:space:]-]|$)|apk([[:space:]-]|$)|pacman([[:space:]-]|$)|dpkg[[:space:]]|rpm[[:space:]]-([^q])|docker[[:space:]]+(compose[[:space:]]+down|rm|kill|stop|system[[:space:]]+prune)|kubectl[[:space:]]+delete|tee[[:space:]]|sed[[:space:]]+-i|truncate[[:space:]]|dd[[:space:]]|mkfs[[:space:]]|fdisk[[:space:]]|pvcreate[[:space:]]|vgremove[[:space:]]|lvremove[[:space:]]|iptables[[:space:]]|ufw[[:space:]]|firewall-cmd[[:space:]]|ip[[:space:]]+(link[[:space:]]+(set|down|delete)|addr[[:space:]]+(add|del)|route[[:space:]]+(add|del|replace))|nmcli[[:space:]]|curl[[:space:]].*(\||\$)|wget[[:space:]].*(\||\$)|eval[[:space:]]|sh[[:space:]]+-c|bash[[:space:]]+-c|chpasswd[[:space:]]|passwd[[:space:]]|usermod[[:space:]]|groupmod[[:space:]]|useradd[[:space:]]|userdel[[:space:]]|>>?[[:space:]]+[^ ]+[[:space:]]*$|>\||:>|echo[[:space:]].*>|printf[[:space:]].*>)] ]]
 }
 
 HOST=""
@@ -133,6 +135,9 @@ if [[ -n "$HOST_KEY_CHECKING" && "$HOST_KEY_CHECKING" != "accept-new" && "$HOST_
   exit 2
 fi
 
+# The heuristic pattern check catches obvious destructive commands but is NOT exhaustive.
+# An empty check is not proof that a command is safe — it only means no known pattern matched.
+# Always treat novel, chained, or obfuscated commands with caution.
 if is_dangerous_command "$REMOTE_COMMAND" && [[ "$CONFIRM_DANGEROUS" -ne 1 ]]; then
   python3 - "$HOST" "$REMOTE_COMMAND" <<'PY'
 import json
@@ -142,6 +147,7 @@ print(json.dumps({
     "success": False,
     "exit_code": 99,
     "dangerous": True,
+    "heuristic_match": True,
     "error": "Command looks mutating or destructive. Re-run with --confirm-dangerous only after explicit user approval.",
     "host": host,
     "command": remote_command,

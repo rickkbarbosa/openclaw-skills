@@ -2,9 +2,12 @@
 
 ## Default posture
 
+- **Read-only first.** Start with inspection commands (`hostname`, `uptime`, `df -h`, `journalctl -n 100`, `docker ps`).
+- **Explicit confirmation before any mutation.** State-changing commands require the user to see and approve the exact command before `--confirm-dangerous` is passed.
+- **Least-privilege SSH accounts.** Use a dedicated read-only or low-privilege SSH account for inspection when available. Only escalate to a privileged account for authorized mutation.
+- The script's dangerous-command heuristic (`is_dangerous_command`) is a **best-effort pattern check**, not a guarantee. It can produce both false positives and (more critically) false negatives. An empty check does not mean the command is safe.
 - Prefer SSH aliases and existing `~/.ssh/config` entries.
 - Prefer private keys over passwords.
-- Prefer read-only inspection before any mutation.
 - Keep timeouts short unless the user clearly expects a long-running command.
 - Let ssh config resolve host, user, port, and identity file when an alias already exists.
 
@@ -15,25 +18,19 @@
 - `accept-new`: acceptable for first contact on low-risk hosts when the user asked to connect.
 - `no`: avoid unless the user explicitly understands the risk.
 
-## Commands that need confirmation
+## Commands that always need confirmation
 
-Ask before running commands that:
-- modify files or permissions
-- restart or stop services
-- install, remove, or upgrade packages
-- reboot or shut down the host
-- use `sudo`
-- delete data or rotate logs
-- change container, database, firewall, or network state
+Ask the user before running any command that:
+- modifies files, permissions, or ownership (`rm`, `mv`, `chmod`, `chown`, `tee`, `dd`, `truncate`, `sed -i`)
+- restarts, stops, or disables services (`systemctl restart|stop|disable`, `service`, `initctl`)
+- installs, removes, or upgrades packages (`apt`, `apt-get`, `dnf`, `yum`, `apk`, `pacman`, `dpkg`, `rpm`)
+- reboots or shuts down the host (`reboot`, `shutdown`, `poweroff`)
+- uses `sudo`
+- deletes, rotates, or truncates data (`truncate`, `dd`, logrotate actions)
+- changes containers, databases, firewalls, or network state (`docker rm|down|kill`, `kubectl delete`, `iptables`, `ufw`, `firewall-cmd`, `ip link set`, `ip addr add|del`, `nmcli`)
+- writes to disk or pipes output to a file (`>`, `>>`, `| tee`, `dd`)
+- executes code on the remote host that was not explicitly reviewed (`curl | bash`, `wget -O- | sh`, `eval`, `source`)
 
-The script returns a guardrail error for dangerous commands unless `--confirm-dangerous` is present.
+**When in doubt, treat the command as dangerous and ask for confirmation.**
 
-## Reporting pattern
-
-After execution, report:
-1. target host
-2. whether connection succeeded
-3. exit code
-4. resolved SSH metadata when useful
-5. short summary of stdout/stderr
-6. next safe step
+The script returns a guardrail error (exit code 99) for commands matching the heuristic unless `--confirm-dangerous` is present.

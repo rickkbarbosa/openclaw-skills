@@ -20,6 +20,10 @@ Use this skill to run remote commands safely over SSH.
 
 ## Safety rules
 
+- **Prefer read-only commands first.** Default to inspection before any state change.
+- **Explicit confirmation is required for any mutation** — every command that modifies state (files, services, packages, data, containers, network, firewall, or anything using `sudo`) needs the user to see and approve the exact command before the agent passes `--confirm-dangerous`.
+- **The dangerous-command heuristic is not exhaustive.** The pattern check may miss novel or obfuscated destructive commands. When in doubt, treat the command as dangerous and ask for confirmation.
+- **Prefer least-privilege SSH accounts.** If the remote host has a dedicated read-only or low-privilege account, use that for inspection. Only escalate for clearly authorized mutation.
 - Prefer key-based auth. Do not ask the user to paste passwords into chat unless they explicitly insist and understand the risk.
 - Do not reveal or copy private-key contents into chat, logs, or memory files.
 - Do not disable host-key checking silently.

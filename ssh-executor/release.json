@@ -1,7 +1,7 @@
 {
   "slug": "ssh-executor",
   "displayName": "ssh-executor",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "sourceDir": "/home/openclaw/.openclaw/workspace/skills/ssh-executor",
   "packageFile": "ssh-executor.skill",
   "shortDescription": "Run key-based SSH commands with alias support, structured output, tmux-friendly workflows, and confirmation guardrails for dangerous operations.",

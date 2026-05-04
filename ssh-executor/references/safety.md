@@ -34,3 +34,10 @@ Ask the user before running any command that:
 **When in doubt, treat the command as dangerous and ask for confirmation.**
 
 The script returns a guardrail error (exit code 99) for commands matching the heuristic unless `--confirm-dangerous` is present.
+
+## Credential hygiene
+
+- **Use dedicated least-privilege SSH keys** for remote inspection. Create a separate key/alias with read-only permissions instead of reusing a full-access key.
+- **Do not paste private keys or passwords into chat** under any circumstance.
+- The script's JSON output intentionally **omits key paths, SSH config paths, and resolved identity file paths** to avoid leaking credential metadata to logs, chat, or memory files.
+- If an SSH alias resolves to a privileged account by default, configure a separate alias for inspection or explicitly pass `--user` with a low-privilege user.

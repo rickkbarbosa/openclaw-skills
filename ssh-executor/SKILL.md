@@ -9,19 +9,28 @@ metadata:
 
 Use this skill to run remote commands safely over SSH.
 
+## Provenance
+
+- **Author:** Community skill (see [clawhub.ai](https://clawhub.ai) for the original listing)
+- **Homepage:** This package — verify checksums from a trusted distribution source
+- **Integrity:** The release zip includes a `.sha256` checksum for the compiled `.skill` file. Verify before installation.
+- **Review:** All bundled source is plain-text and visible. Review `scripts/ssh-run.sh` and `SKILL.md` before first use.
+
 ## Quick start
 
 1. Gather the host alias, username, port, and key path from the user's instructions or local SSH config.
 2. Prefer SSH aliases from `~/.ssh/config` instead of raw IPs when available.
-3. Default to read-only commands first.
-4. Require explicit user confirmation before destructive or state-changing commands.
-5. Use the bundled `scripts/ssh-run.sh` helper for execution.
-6. Return stdout, stderr, exit code, and resolved SSH metadata clearly.
+3. **Validate the target host with the user** before running any command, especially if the host was inferred or listed from config rather than explicitly requested.
+4. Default to read-only commands first.
+5. Require explicit user confirmation before destructive or state-changing commands.
+6. Use the bundled `scripts/ssh-run.sh` helper for execution.
+7. Return stdout, stderr, exit code, and resolved SSH metadata clearly.
 
 ## Safety rules
 
+- **Validate the host with the user.** Before connecting, confirm the exact hostname or alias with the user, especially if it was inferred from context or discovered via `--list-aliases`. Do not assume a host is the right target.
 - **Prefer read-only commands first.** Default to inspection before any state change.
-- **Explicit confirmation is required for any mutation** — every command that modifies state (files, services, packages, data, containers, network, firewall, or anything using `sudo`) needs the user to see and approve the exact command before the agent passes `--confirm-dangerous`.
+- **Explicit confirmation is required for any mutation** — every command that modifies state (files, services, packages, data, containers, network, firewall, or anything using `sudo`) needs the user to see and approve the exact command **in full** before the agent passes `--confirm-dangerous`.
 - **The dangerous-command heuristic is not exhaustive.** The pattern check may miss novel or obfuscated destructive commands. When in doubt, treat the command as dangerous and ask for confirmation.
 - **Prefer least-privilege SSH accounts.** If the remote host has a dedicated read-only or low-privilege account, use that for inspection. Only escalate for clearly authorized mutation.
 - Prefer key-based auth. Do not ask the user to paste passwords into chat unless they explicitly insist and understand the risk.

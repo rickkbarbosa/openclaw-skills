@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# =============================================================================
+# ssh-run.sh — Remote SSH command executor with safety guardrails
+#
+# Provenance:
+#   Part of the ssh-executor skill for OpenClaw.
+#   Source is bundled and fully reviewable.
+#   Verify integrity via the .sha256 checksum in the release package.
+#
+# Security model:
+#   - This script has broad remote-shell authority. Use only for
+#     user-requested hosts with user-approved commands.
+#   - The dangerous-command heuristic is best-effort and NOT exhaustive.
+#   - Host validation should happen BEFORE calling this script;
+#     confirm the target with the user first.
+# =============================================================================
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -196,14 +212,14 @@ ssh "${SSH_ARGS[@]}" "$TARGET" "$REMOTE_COMMAND" >"$STDOUT_FILE" 2>"$STDERR_FILE
 EXIT_CODE=$?
 set -e
 
-python3 - "$EXIT_CODE" "$RESOLVE_EXIT" "$HOST" "$USER_NAME" "$PORT" "$KEY_PATH" "$TIMEOUT" "$HOST_KEY_CHECKING" "$CONFIG_PATH" "$REMOTE_COMMAND" "$RESOLVED_FILE" "$STDOUT_FILE" "$STDERR_FILE" <<'PY'
+python3 - "$EXIT_CODE" "$RESOLVE_EXIT" "$HOST" "$USER_NAME" "$PORT" "$TIMEOUT" "$HOST_KEY_CHECKING" "$REMOTE_COMMAND" "$RESOLVED_FILE" "$STDOUT_FILE" "$STDERR_FILE" <<'PY'
 import json
 import pathlib
 import sys
 
 exit_code = int(sys.argv[1])
 resolve_exit = int(sys.argv[2])
-host, user_name, port, key_path, timeout, host_key_checking, config_path, remote_command, resolved_file, stdout_file, stderr_file = sys.argv[3:]
+host, user_name, port, timeout, host_key_checking, remote_command, resolved_file, stdout_file, stderr_file = sys.argv[3:]
 stdout_text = pathlib.Path(stdout_file).read_text(encoding='utf-8', errors='replace')
 stderr_text = pathlib.Path(stderr_file).read_text(encoding='utf-8', errors='replace')
 resolved = {}
@@ -214,9 +230,12 @@ if resolve_exit == 0:
         key, _, value = raw.partition(' ')
         key = key.strip()
         value = value.strip()
-        if key in {"hostname", "user", "port", "identityfile"} and value:
+        if key in {"hostname", "user", "port"} and value:
             resolved.setdefault(key, []).append(value)
 
+# Security: key paths and ssh config paths are NOT included in output.
+# Private-key paths are sensitive metadata that should not be
+# exposed to chat, logs, or memory files.
 result = {
     "success": exit_code == 0,
     "exit_code": exit_code,
@@ -224,15 +243,12 @@ result = {
     "host": host,
     "user": user_name or None,
     "port": int(port) if port else None,
-    "key_path": key_path or None,
     "timeout": int(timeout),
     "host_key_checking": host_key_checking or None,
-    "ssh_config": config_path or None,
     "command": remote_command,
     "resolved_hostname": (resolved.get("hostname") or [None])[0],
     "resolved_user": (resolved.get("user") or [None])[0],
     "resolved_port": int((resolved.get("port") or [0])[0]) if resolved.get("port") else None,
-    "resolved_identity_files": resolved.get("identityfile") or [],
     "stdout": stdout_text,
     "stderr": stderr_text,
 }

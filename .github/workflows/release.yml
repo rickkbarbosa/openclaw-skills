@@ -1,0 +1,88 @@
+name: Release Skills
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect changed skills
+        id: changes
+        run: |
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          else
+            CHANGED_FILES=$(git ls-files)
+          fi
+
+          SKILLS=""
+          for dir in */; do
+            dir="${dir%/}"
+            if [ -f "$dir/release.json" ] && echo "$CHANGED_FILES" | grep -q "^$dir/"; then
+              SKILLS="$SKILLS $dir"
+            fi
+          done
+
+          echo "skills=$SKILLS" >> "$GITHUB_OUTPUT"
+          echo "Changed skills: $SKILLS"
+
+      - name: Create releases
+        if: steps.changes.outputs.skills != ''
+        run: |
+          for skill_dir in ${{ steps.changes.outputs.skills }}; do
+            echo "Processing $skill_dir"
+
+            VERSION=$(jq -r '.version' "$skill_dir/release.json")
+            SLUG=$(jq -r '.slug // .displayName // .name' "$skill_dir/release.json")
+            [ "$SLUG" = "null" ] && SLUG="$skill_dir"
+
+            CHANGELOG=$(jq -r '.changelog // ""' "$skill_dir/release.json")
+            [ "$CHANGELOG" = "null" ] && CHANGELOG=""
+
+            TAG="${skill_dir}/v${VERSION}"
+
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              echo "Tag $TAG already exists, skipping"
+              continue
+            fi
+
+            SKILL_FILE=$(ls "$skill_dir"/*.skill 2>/dev/null | head -1)
+
+            if [ -z "$SKILL_FILE" ]; then
+              echo "No .skill file found in $skill_dir, skipping"
+              continue
+            fi
+
+            SHA_FILE="${SKILL_FILE}.sha256"
+            if [ ! -f "$SHA_FILE" ]; then
+              sha256sum "$SKILL_FILE" | awk '{print $1}' > "$SHA_FILE"
+            fi
+
+            NOTES="## ${SLUG} v${VERSION}"
+            if [ -n "$CHANGELOG" ]; then
+              NOTES="${NOTES}\n\n${CHANGELOG}"
+            fi
+
+            git tag "$TAG"
+            git push origin "$TAG"
+
+            gh release create "$TAG" \
+              --title "${SLUG} v${VERSION}" \
+              --notes "$(printf "%b" "$NOTES")" \
+              "$SKILL_FILE" "$SHA_FILE"
+
+            echo "Released $TAG"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

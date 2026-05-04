@@ -1,5 +1,5 @@
 {
   "name": "zabbix",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Skill for Zabbix API monitoring and interaction."
 }

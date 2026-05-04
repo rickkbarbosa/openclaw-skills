@@ -1,0 +1,10 @@
+{
+  "slug": "ssh-executor",
+  "displayName": "ssh-executor",
+  "version": "1.0.3",
+  "sourceDir": "/home/openclaw/.openclaw/workspace/skills/ssh-executor",
+  "packageFile": "ssh-executor.skill",
+  "shortDescription": "Run key-based SSH commands with alias support, structured output, tmux-friendly workflows, and confirmation guardrails for dangerous operations.",
+  "tags": ["ssh", "remote-exec", "ops", "automation", "linux"],
+  "changelog": "Metadata declaration release. Adds explicit python3 runtime requirement, keeps bundled script references aligned, and preserves a coherent public release bundle."
+}

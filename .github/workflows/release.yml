@@ -44,9 +44,6 @@ jobs:
             echo "Processing $skill_dir"
 
             VERSION=$(jq -r '.version' "$skill_dir/release.json")
-            SLUG=$(jq -r '.slug // .displayName // .name' "$skill_dir/release.json")
-            [ "$SLUG" = "null" ] && SLUG="$skill_dir"
-
             CHANGELOG=$(jq -r '.changelog // ""' "$skill_dir/release.json")
             [ "$CHANGELOG" = "null" ] && CHANGELOG=""
 
@@ -69,7 +66,7 @@ jobs:
               sha256sum "$SKILL_FILE" | awk '{print $1}' > "$SHA_FILE"
             fi
 
-            NOTES="## ${SLUG} v${VERSION}"
+            NOTES="## ${skill_dir} v${VERSION}"
             if [ -n "$CHANGELOG" ]; then
               NOTES="${NOTES}\n\n${CHANGELOG}"
             fi
@@ -78,7 +75,7 @@ jobs:
             git push origin "$TAG"
 
             gh release create "$TAG" \
-              --title "${SLUG} v${VERSION}" \
+              --title "${skill_dir} v${VERSION}" \
               --notes "$(printf "%b" "$NOTES")" \
               "$SKILL_FILE" "$SHA_FILE"
 
